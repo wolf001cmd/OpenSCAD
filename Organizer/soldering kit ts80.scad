@@ -3,6 +3,8 @@ $fn = 90;
 
 /* Parameters */
 
+type = "single"; // single, dual
+
 width = 65;
 height = 43;
 wallthickness = 2.5;
@@ -10,8 +12,8 @@ chamfer = 2/sqrt(2);
 
 solderZoneLength = 22;
 powerZoneLength = 31;
-storageZoneLength = 34;
-cableZoneLength = 17.5;
+storageZoneLength = (type == "dual") ? 34 : 39;
+cableZoneLength = (type == "dual") ? 17.5 : 0;
 
 tipOffset = 10.5;
 tipSpacing = (storageZoneLength+wallthickness)/4+wallthickness;
@@ -38,15 +40,17 @@ module chamferedCube(xyz, chamfer){
 	
 /* Iron Tips */
 
-module ironTips(){
-	translate([0,tipSpacing,wallthickness])
+module ironTips(offset){
+	translate([0,offset,wallthickness])
 	union(){
-	translate([0,0,0])
-		cylinder(d=9, height);
-	translate([0,tipSpacing,0])
-		cylinder(d=9, height);
-	translate([0,tipSpacing*2,0])
-		cylinder(d=9, height);
+		translate([0,0,0])
+			cylinder(d=9, height);
+		translate([0,tipSpacing,0])
+			cylinder(d=9, height);
+		if (type == "dual"){
+			translate([0,tipSpacing*2,0])
+				cylinder(d=9, height);
+			}
 		}
 	}
 
@@ -55,12 +59,12 @@ difference(){
 	//Main Body
   union(){
 		translate([0,0,0])
-      chamferedCube([width,length,height], chamfer);
+      chamferedCube([width,length-((cableZoneLength != 0) ? 0 : wallthickness),height], chamfer);
     }
 		
   union(){
 	
-		translate([wallthickness,0,wallthickness])
+		translate([wallthickness,((cableZoneLength != 0) ? 0 : -wallthickness),wallthickness])
 		union(){
 			
 			//Power Zone
@@ -72,30 +76,56 @@ difference(){
 				chamferedCube([width-wallthickness*2,solderZoneLength,height],chamfer);
 			
 			//Storage Zone
+			storageZoneWidth = (type == "dual") ? 16 : width-tipOffset*3+wallthickness*1.5;
 			translate([0,wallthickness*2+cableZoneLength,7])
-				chamferedCube([16-wallthickness*2,storageZoneLength,height],chamfer);
+				chamferedCube([storageZoneWidth-wallthickness*2,storageZoneLength,height],chamfer);
 			
 			//Cable Zone
-			translate([0,wallthickness,0])
-				chamferedCube([width-wallthickness*2,cableZoneLength,height],chamfer);
-				
+			if (cableZoneLength != 0){
+				translate([0,wallthickness,0])
+					chamferedCube([width-wallthickness*2,cableZoneLength,height],chamfer);
+				}
 			}
 			
-		translate([6,cableZoneLength-wallthickness/2,0])
-		union(){
-		
-			//Tips Storage
-			translate([width-(wallthickness*2+tipOffset),0,0])
-			ironTips();
-			translate([wallthickness*2+tipOffset,0,0])
-			ironTips();
-        
-			//Soldering Irons
-      translate([width/2,ironSpacing,wallthickness])
-        cylinder(d=14.5, height);
-      translate([width/2,ironSpacing*2+wallthickness,wallthickness])
-        cylinder(d=14.5, height);
+		if (type == "dual"){
+			translate([6,cableZoneLength-wallthickness/2,0])
+			union(){
+			
+				//Tips Storage
+				translate([width-(wallthickness*2+tipOffset),0,0])
+					ironTips(tipSpacing);
+				translate([wallthickness*2+tipOffset,0,0])
+					ironTips(tipSpacing);
+					
+				//Soldering Irons
+				translate([width/2,ironSpacing,wallthickness])
+					cylinder(d=14.5, height);
+				translate([width/2,ironSpacing*2+wallthickness,wallthickness])
+					cylinder(d=14.5, height);
+					
+				}
+			}
+		else {
+			a = cableZoneLength+tipOffset;
+			b = length-wallthickness-solderZoneLength-powerZoneLength-tipOffset;
+			c = width-(wallthickness*2+tipOffset);
+			d = a + (b - a) / 2;
+			translate([6,-wallthickness,0])
+			union(){
 				
+				//Tips Storage
+				translate([c,a,0])
+				rotate([0,0,90])
+					ironTips(0);
+				translate([c,b,0])
+				rotate([0,0,90])
+					ironTips(0);
+					
+				//Soldering Irons
+				translate([width-tipOffset*2,d,wallthickness])
+					cylinder(d=14.5, height);
+					
+				}
 			}
     }
   }
