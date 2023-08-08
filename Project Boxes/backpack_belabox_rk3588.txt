@@ -1,0 +1,207 @@
+--- Setup Overview ---
+
+This build is focused on being small / compact, with minimal setup to go live. Two modems are built into the main box, 
+along with the encoder. Additionally there are 4 antennas ( 2 wifi, 2 LTE ) built in, with an additional usb wifi card. 
+Please note I have been reusing hardware I had on hand, this can work or be modified for a variety of 4G or 5G modems. 
+
+I'm using https://belabox.net/rk3588/ for this backpack build, it's got a lot of nice features to it, if you choose to 
+build one be aware of this section specifically https://belabox.net/rk3588/#are-there-known-issues
+
+--- Parts List ---
+
+Prices as of time of writing...
+
+Encoder - Orange Pi 5 Plus 4GB - $107
+Eth Modem - Netgear LM1200 - $150 ( reused )
+USB Modem - ZTE MF833V - $55
+Eth Modem - LINOVISION IOT-R41 - $175 ( this is pricey but it has vpn support and is pretty much a full featured router )
+Wireless - Intel Wireless-Ac 9260 - $13
+Wireless - USB AC Adapter RTL8811CU - $14
+Battery - Anker 337 - $60 ( reused, there are newer batteries recommended by belabox )
+Cables - USB C 1ft - $8 for 3
+Cables - Cat6 Eth 0.5ft - $10 for 2
+Fan - 30mm 5v - $10 for 5 
+Rubber Bands - Heavy Duty - $10
+Capacitor - 470uF - $idk ( I use this on the 5v / gnd pins to help stability under load, old trick from raspberry pi days )
+
+So the rough cost for me was about $612, not including 3d printing the case and a few revisions. That said this setup 
+has worked very well on nature walks so far with just the ZTE / Netgear modems at 4500k bit rate. So I would skip the 
+IOT-R41 and test your setup first, also remember that you can tether your phone in a pinch.
+
+A note on bitrate, this encoder uses SRT + H265 so 4500k is kinda comperable to 6000k using RTMP + H264. 
+But your mileage may vary.
+
+I'm currently using a DJI Action 2 with rtmp ( I have tested usb but it doesn't support audio ), 
+My gopro hates me but has worked in short bursts...
+
+--- 3d Printed Case ---
+
+Check below for the latest revision, and feel free to modify it to your needs ( and comment on my brute force approaches ).
+
+backpack_build_8 at the time of writing, I might upload STL's if needed. Right now it's just the code.
+
+https://github.com/Wolf001ZRA/OpenSCAD/tree/main/Project%20Boxes
+
+--- Setup ---
+
+Follow the guides from belabox, their cloud relay service is $10 a month to subscribe to. Additionally they allow remote access 
+to your encoder which is super convenient.
+
+https://belabox.net/rk3588/
+https://cloud.belabox.net/
+
+The encoder supports hdmi in and rtmp in out of the box. USB in is also possible, but not supported by default currently.
+
+I run a wireless camera using rtmp off of an access point provided by the belabox encoder. 
+This is not supported by default, this is a modded config. See Wireless AP section below.
+
+To start a stream, I have OBS / NOALBS open on my pc. Using chat commands I can start stream with NOALBS. Then when ready I plug into 
+the battery, wait about 45 seconds, start the rtmp feed from my camera, afterwards I access the encoder via cloud.belabox.net. 
+At that point I can use another command to swap to my main scene.
+
+--- OBS Setup ---
+
+In obs just follow the steps from belabox.
+
+Personally I have my scenes layered so that if the injest fails, then it will show a brb screen automatically. I'm also setup 
+to direct phone stream if something goes horribly wrong, either via the belabox servers or direct.
+
+More recently I have started using NOALBS which is a little chat bot that can start / stop, monitor bitrate, and switch scenes 
+automagically. Only used it a bit so far but it seems pretty solid. Also automatically ends on raid which I really like. 
+Previously I was using a VPN to access obs and with the wireless camera I had to switch it on / off constantly.
+
+--- NOALBS Setup ---
+
+TBD, only started using it the other day.
+
+--- Wireless AP Setup --- 
+
+Below are the command line steps to setup an AP using these cards. You have to run these via SSH on your belabox encoder. 
+Please swap out the password and access point name as needed. This won't work with a gopro, much to my annoyance. 
+You'd probably need a bridge configuration for gopro rtmp to work as it wants to talk to the internet.
+
+See these links for reference on how I got to this config, wlan1 is used here. Which for me is my usb wifi module. 
+Swap wlan1 for wlan0 or whatever interface you'd like to use.
+
+( FYI I need to validate these are everything )
+
+##install needed utilities##
+sudo apt install -y bridge-utils hostapd nano isc-dhcp-server
+
+#in case we ever want to use bridging
+echo 'net.ipv4.ip_forward=1' | sudo tee -a /etc/sysctl.conf
+
+##hostapd setup##
+#remove old file
+rm /etc/hostapd/hostapd.conf
+
+#setup basics ( set your country code if needed )
+echo 'interface=wlan1' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'driver=nl80211' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'country_code=US' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'wpa=2' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'wpa_key_mgmt=WPA-PSK' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'rsn_pairwise=CCMP' | sudo tee -a /etc/hostapd/hostapd.conf
+
+#5ghz wifi steps ( only a few channels are supported so I just use 1 )
+echo 'hw_mode=a' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'channel=36' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'ieee80211n=1' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'ieee80211ac=1' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'require_ht=1' | sudo tee -a /etc/hostapd/hostapd.conf
+
+#2.4ghz wifi steps ( only a few channels are supported so I just use 1 )
+echo 'hw_mode=g' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'channel=1' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'ieee80211n=1' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'auth_algs=1' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'macaddr_acl=0' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'wmm_enabled=1' | sudo tee -a /etc/hostapd/hostapd.conf
+#echo 'ht_capab=[HT40][SHORT-GI-20][DSSS_CCK-40]' | sudo tee -a /etc/hostapd/hostapd.conf
+
+#ssid / pass ( UPDATE THESE )
+echo 'ssid=Wolfs_Mobile_Network' | sudo tee -a /etc/hostapd/hostapd.conf
+echo 'wpa_passphrase=Wolfs_Password' | sudo tee -a /etc/hostapd/hostapd.conf
+
+#hostapd config file ( just enables this stuffs )
+echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' | sudo tee -a /etc/default/hostapd
+
+##dhcpd## 
+#we run a mini dhcp server here to give out IP Addresses to devices on our network.
+
+#save old config
+sudo mv /etc/dhcp/dhcpd.conf /etc/dhcp/dhcpd.old.conf
+
+#set a bunch of stuff I found that seems to work
+echo 'ddns-update-style none;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'option domain-name "wolf.local";' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'option domain-name-servers 8.8.8.8, 1.1.1.1;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'default-lease-time 3600;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'max-lease-time 43200;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'authoritative;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'log-facility local7;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo 'subnet 192.168.47.0  netmask 255.255.255.0 {' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo '    range 192.168.47.50  192.168.47.250;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo '    option routers 192.168.47.1;' | sudo tee -a /etc/dhcp/dhcpd.conf
+echo '}' | sudo tee -a /etc/dhcp/dhcpd.conf
+
+#dhcpd config file ( just enables this stuffs )
+sudo mv /etc/dhcp/dhcpd.conf /etc/default/isc-dhcp-server.old
+
+echo 'INTERFACESv4="wlan1"' | sudo tee -a /etc/default/isc-dhcp-server
+
+##interface##
+
+#setup our wlan1 interface to allow hotplug and set our static ip
+echo 'allow-hotplug wlan1' | sudo tee -a /etc/network/interfaces
+echo 'iface wlan1 inet static' | sudo tee -a /etc/network/interfaces
+echo '  address 192.168.47.1' | sudo tee -a /etc/network/interfaces
+echo '  netmask 255.255.255.0' | sudo tee -a /etc/network/interfaces
+
+##rc.local startup##
+
+#remove old file
+rm /etc/rc.local
+
+#setup startup 
+echo '#!/bin/bash' | sudo tee -a /etc/rc.local
+#wait a while for startup to complete
+echo 'sleep 12' | sudo tee -a /etc/rc.local
+#we first make sure wlan1 is ready with up / down
+echo 'ifdown wlan1' | sudo tee -a /etc/rc.local
+echo 'ifup wlan1' | sudo tee -a /etc/rc.local
+echo 'sleep 4' | sudo tee -a /etc/rc.local
+#startup our access point
+echo 'systemctl start hostapd.service' | sudo tee -a /etc/rc.local
+echo 'sleep 4' | sudo tee -a /etc/rc.local
+#startup our dhcp server
+echo 'systemctl start isc-dhcp-server.service' | sudo tee -a /etc/rc.local
+echo 'exit 0' | sudo tee -a /etc/rc.local
+
+#set executable
+sudo chmod +x /etc/rc.local
+
+##services##
+#enable the services which are disabled by default after install
+
+systemctl unmask hostapd.service
+systemctl enable hostapd.service
+systemctl stop hostapd.service
+systemctl start hostapd.service
+systemctl status hostapd.service
+
+systemctl unmask isc-dhcp-server.service
+systemctl enable isc-dhcp-server.service
+systemctl stop isc-dhcp-server.service
+systemctl start isc-dhcp-server.service
+systemctl status isc-dhcp-server.service
+
+#test commands if you need to debug your config 
+# ( make sure to stop / disable startup on these services first )
+#sudo hostapd -d /etc/hostapd/hostapd.conf
+#sudo dhcpd -d /etc/dhcp/dhcpd.conf
+
+--- USB Injest Setup ---
+
+TBD, waiting until I can test more to post this. Addtionally I have been told the current method I was 
+provided is not super efficeint
