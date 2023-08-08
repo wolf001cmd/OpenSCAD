@@ -40,7 +40,7 @@ union(){
 	nano();
 	}
 top();
-//bottom();
+bottom();
 
 module top (){
 	t = thickness;
@@ -226,25 +226,32 @@ module bottom (){
 	union(){
 		translate([x/2-spacing*2,0,-t])
 		difference(){
-			hull(){
-				translate([-x/2,-y/2])
-					chamferedCube([x,y,t],1);
-				translate([0,y/2,0])
-					chamferedCylinder(x/2,t,1);
-				translate([0,-y/2,0])
-					chamferedCylinder(x/2,t,1);
+			union(){
+				hull(){
+					translate([0,y/2,0])
+						chamferedCylinder(x/2,t,1);
+					translate([0,-y/2,0])
+						chamferedCylinder(x/2,t,1);
+					translate([24,y/7,0])
+						chamferedCylinder(x/2-5,t,1);
+					translate([24,-y/7,0])
+						chamferedCylinder(x/2-5,t,1);
+					}
 				}
 			//screws
 			translate([0,0,0])
-				bore4(x-14,y-14,1.6,20);
+				bore4(x-14,y-14,1.65,20);
 			}
-			}
-		translate([0,y/2+t*2,-t])
+		translate([-2,y/2+t*2,-t+1])
 		rotate([0,90,0])
-			chamferedCylinder(t,x-spacing*4,2);
-		translate([0,-y/2-t*2,-t])
+			chamferedCylinder(t-1,x-spacing*3,2);
+		translate([-2,-y/2-t*2,-t+1])
 		rotate([0,90,0])
-			chamferedCylinder(t,x-spacing*4,2);
+			chamferedCylinder(t-1,x-spacing*3,2);
+		translate([69,-17,-t+1])
+		rotate([0,90,90])
+			chamferedCylinder(t-1,34,2);
+		}
 				
 	}
 
